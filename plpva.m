@@ -227,7 +227,7 @@ switch f_dattype,
         % of entire data set with fit
         for B=1:length(nof)
             numprocstouse = min([length(nof)-B+1 numprocs]);
-            bigtmp = M.runN(numprocstouse,@int_loop,N,pz,y,ny,xmin,mmax,xminx,limit,sample);
+            bigtmp = M.runN(numprocstouse,@int_loop,N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf);
             for k=1:numprocstouse
                 tmp = bigtmp{k};
                 % store distribution of estimated gof values
@@ -284,7 +284,7 @@ end;
 tmp = min(dat);
 end
 
-function tmp = int_loop(N,pz,y,ny,xmin,mmax,xminx,limit,sample)
+function tmp = int_loop(N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf)
 % semi-parametric bootstrap of data
 n1 = sum(rand(N,1)>pz);
 q1 = y(ceil(ny.*rand(n1,1)));
