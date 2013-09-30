@@ -172,8 +172,11 @@ tic;
 if multiproc
     try
         M = procManager(numprocs);
-    catch
-        fprintf('procManager.m needs to be in the working path, either the directory this ran from or ~/matlab/procManager.m');
+    catch 
+        fprintf('procManager.m needs to be in the working path, either the directory this ran from or ~/matlab/procManager.m\n');
+        alpha = [];
+        xmin  = [];
+        n     = [];
         return
     end
 end
@@ -185,23 +188,23 @@ switch f_dattype,
             for B=1:numprocs:size(bof,1)
                 numprocstouse = min([size(bof,1)-B+1 numprocs]);
                 tmp_array = M.runN(numprocstouse,@real_loop,x,N,xminx,limit,sample);
-              for k=1:numprocstouse
-                pos = B+k-1;
-                bof(pos,:) = tmp_array{k};
+                for k=1:numprocstouse
+                    pos = B+k-1;
+                    bof(pos,:) = tmp_array{k};
+                    if ~quiet && pos>1,
+                        fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
+                    end
+                end
+            end
+        else
+            for B=1:size(bof,1)
+                pos = B;
+                bof(pos,:) = real_loop(x,N,xminx,limit,sample);
+                
                 if ~quiet && pos>1,
                     fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
                 end
             end
-        end
-        else
-        for B=1:size(bof,1)
-        pos = B;
-        bof(pos,:) = real_loop(x,N,xminx,limit,sample);
-
-       if ~quiet && pos>1,
-                    fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
-                end
-        end
         end
         n     = std(bof(:,1));
         xmin  = std(bof(:,2));
@@ -214,25 +217,25 @@ switch f_dattype,
         end                            % scaling parameters
         zvec = zeta(vec);
         if multiproc
-        for B=1:numprocs:size(bof,1)
-            numprocstouse = min([size(bof,1)-B+1 numprocs]);
-            tmp_array = M.runN(numprocstouse,@int_loop,x,N,xminx,limit,sample,vec,zvec);
-            for k=1:numprocstouse
-                pos = B+k-1;
-                bof(pos,:) = tmp_array{k};
+            for B=1:numprocs:size(bof,1)
+                numprocstouse = min([size(bof,1)-B+1 numprocs]);
+                tmp_array = M.runN(numprocstouse,@int_loop,x,N,xminx,limit,sample,vec,zvec);
+                for k=1:numprocstouse
+                    pos = B+k-1;
+                    bof(pos,:) = tmp_array{k};
+                    if ~quiet && pos>1,
+                        fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
+                    end
+                end
+            end
+        else
+            for B=1:size(bof,1)
+                pos = B;
+                bof(pos,:) = int_loop(x,N,xminx,limit,sample,vec,zvec);
                 if ~quiet && pos>1,
                     fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
                 end
             end
-        end
-        else
-                for B=1:size(bof,1)
-pos = B;
-bof(pos,:) = int_loop(x,N,xminx,limit,sample,vec,zvec);
-                if ~quiet && pos>1,
-                    fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
-                end
-end
         end
         n     = std(bof(:,1));
         xmin  = std(bof(:,2));

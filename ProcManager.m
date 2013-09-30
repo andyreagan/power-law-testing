@@ -1,13 +1,13 @@
-classdef ProcManager
+classdef procManager
     % Morgan Frank (24/6/13)
-    % ProcManager.m is a modest datastructure that allows parallel
+    % procManager.m is a modest datastructure that allows parallel
     % processing of matlab functions among up to 12 processors. To reserve
     % a specified number of processors, N, simply create an instance of
-    % ProcManager (ex: M=ProcManager(N)). The constructor of this class
+    % procManager (ex: M=procManager(N)). The constructor of this class
     % will attempt to close any existing parallel matlab "labs" and then 
     % create N new ones. To close the processor manager properly, execute
     % M.close(). This method will close all parallel matlab "labs". With
-    % an active ProcManager instance M, a function handle, F, can be 
+    % an active procManager instance M, a function handle, F, can be 
     % executed in
     % parallel using M.run(F,x1,x2,x3,.....) or M.runN(n,F,x1,x2,x3,...).
     % runN() allows the user to specify the number of processors to run the
@@ -28,7 +28,7 @@ classdef ProcManager
     %   you want. 
     % Example 1:
     %   A simple example of distributing a simple computation.
-    %   M=ProcManager(4); % creates ProcManager with 4 processors
+    %   M=procManager(4); % creates procManager with 4 processors
     %   M.runN(3,@(x,y)[labindex+x+y,labindex],5,6)
     %   ans = 
     %    {[12,1]    [13,2]    [14,3]}
@@ -43,7 +43,7 @@ classdef ProcManager
     %       end;
     %   end
     %
-    %   M=ProcManager(4);
+    %   M=procManager(4);
     %   out=M.run(@matBuild);
     %   Mat=out{1}
     %   for i=2:4
@@ -66,7 +66,7 @@ classdef ProcManager
        numProcs;
    end;
    methods
-       function obj=ProcManager(num)
+       function obj=procManager(num)
            % creates an instance of the processor manager.
            % Input:
            %    num = number of processors to request.

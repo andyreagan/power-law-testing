@@ -175,8 +175,10 @@ if multiproc
     try
         M = procManager(numprocs);
     catch
-        fprintf('procManager.m needs to be in the working path, either the directory this ran from or ~/matlab/procManager.m');
-	return
+        fprintf('procManager.m needs to be in the working path, either the directory this ran from or ~/matlab/procManager.m\n');
+        p   = [];
+        gof = [];
+        return
     end
 end
 
@@ -212,9 +214,10 @@ switch f_dattype,
                 if ~quiet,
                     fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B,sum(nof(1:B)>=gof)./B,toc/60);
                 end
-            end     
+            end
         end
         p = sum(nof>=gof)./length(nof);
+        
         
     case 'INTS',
         
@@ -242,29 +245,30 @@ switch f_dattype,
         mmax = 20*xmax;
         pdf = [zeros(xmin-1,1); (((xmin:mmax).^-alpha))'./ (zvec(I) - sum((1:xmin-1).^-alpha))];
         cdf = [(1:mmax+1)' [cumsum(pdf); 1]];
-        
+       
         % compute distribution of gofs from semi-parametric bootstrap
         % of entire data set with fit
         if multiproc
-        for B=1:length(nof)
-            numprocstouse = min([length(nof)-B+1 numprocs]);
-            bigtmp = M.runN(numprocstouse,@int_loop,N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf,vec,zvec);
-            for k=1:numprocstouse
-                tmp = bigtmp{k};
-                % store distribution of estimated gof values
-                nof(B+k-1) = tmp;
-                if ~quiet,
-                    fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B+k-1,sum(nof(1:B+k-1)>=gof)./(B+k-1),toc/60);
+            for B=1:numprocs:length(nof)
+                numprocstouse = min([length(nof)-B+1 numprocs]);
+                bigtmp = M.runN(numprocstouse,@int_loop,N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf,vec,zvec);
+                for k=1:numprocstouse
+                    tmp = bigtmp{k};
+                    % store distribution of estimated gof values
+                    nof(B+k-1) = tmp;
+                    if ~quiet,
+                        fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B+k-1,sum(nof(1:B+k-1)>=gof)./(B+k-1),toc/60);
+                    end
                 end
             end
-        end
-else
-for B=1:length(nof)
-nof(B) = int_loop(N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf,vec,zvec);
+        else
+            for B=1:length(nof)
+                nof(B) = int_loop(N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf,vec,zvec);
                 if ~quiet,
                     fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B,sum(nof(1:B)>=gof)./B,toc/60);
                 end
-end
+            end
+        end
         p = sum(nof>=gof)./length(nof);
         
     otherwise,
