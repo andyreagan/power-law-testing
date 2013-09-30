@@ -1,4 +1,4 @@
-function [alpha, xmin, n]=plvar(x, varargin)
+function [alpha, xmin, n]=plvar_mult(x, varargin)
 % PLVAR estimates the uncertainty in the estimated power-law parameters.
 %    Source: http://www.santafe.edu/~aaronc/powerlaws/
 %

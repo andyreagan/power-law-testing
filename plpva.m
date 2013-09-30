@@ -1,4 +1,4 @@
-function [p,gof]=plpva(x, xmin, varargin)
+function [p,gof]=plpva_mult(x, xmin, varargin)
 % PLPVA calculates the p-value for the given power-law fit to some data.
 %    Source: http://www.santafe.edu/~aaronc/powerlaws/
 %
@@ -284,7 +284,16 @@ end;
 tmp = min(dat);
 end
 
-function tmp = int_loop(N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf)
+
+
+
+
+
+
+
+
+
+function tmp = int_loop(N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf,vec,zvec)
 % semi-parametric bootstrap of data
 n1 = sum(rand(N,1)>pz);
 q1 = y(ceil(ny.*rand(n1,1)));
