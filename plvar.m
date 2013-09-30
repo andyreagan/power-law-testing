@@ -1,4 +1,4 @@
-function [alpha, xmin, n]=plvar_mult(x, varargin)
+function [alpha, xmin, n]=plvar(x, varargin)
 % PLVAR estimates the uncertainty in the estimated power-law parameters.
 %    Source: http://www.santafe.edu/~aaronc/powerlaws/
 %
@@ -116,23 +116,23 @@ end
 if ~isempty(vec) && (~isvector(vec) || min(vec)<=1),
     fprintf('(PLVAR) Error: ''range'' argument must contain a vector; using default.\n');
     vec = [];
-end;
+end
 if ~isempty(sample) && (~isscalar(sample) || sample<2),
     fprintf('(PLVAR) Error: ''sample'' argument must be a positive integer > 1; using default.\n');
     sample = [];
-end;
+end
 if ~isempty(limit) && (~isscalar(limit) || limit<1),
     fprintf('(PLVAR) Error: ''limit'' argument must be a positive value >= 1; using default.\n');
     limit = [];
-end;
+end
 if ~isempty(Bt) && (~isscalar(Bt) || Bt<2),
     fprintf('(PLVAR) Error: ''reps'' argument must be a positive value > 1; using default.\n');
     Bt = [];
-end;
+end
 if ~isempty(xminx) && (~isscalar(xminx) || xminx>=max(x)),
     fprintf('(PLVAR) Error: ''xmin'' argument must be a positive value < max(x); using default behavior.\n');
     xminx = [];
-end;
+end
 
 % reshape input vector
 x = reshape(x,numel(x),1);
@@ -141,15 +141,15 @@ x = reshape(x,numel(x),1);
 if     isempty(setdiff(x,floor(x))), f_dattype = 'INTS';
 elseif isreal(x),    f_dattype = 'REAL';
 else                 f_dattype = 'UNKN';
-end;
+end
 if strcmp(f_dattype,'INTS') && min(x) > 1000 && length(x)>100,
     f_dattype = 'REAL';
-end;
+end
 if isempty(rand_state)
     rand_state = cputime;
     rand('twister',sum(100*clock));
-end;
-if isempty(Bt), Bt = 1000; end;
+end
+if isempty(Bt), Bt = 1000; end
 N   = length(x);
 bof = zeros(Bt,3);
 
@@ -158,31 +158,46 @@ if ~quiet,
     fprintf('   Copyright 2007-2009 Aaron Clauset\n');
     fprintf('   Warning: This can be a slow calculation; please be patient.\n');
     fprintf('   n    = %i\n   reps = %i\n',N,length(bof));
-end;
+end
 tic;
 
 % estimate xmin and alpha, accordingly
 
 % use multiple cores, if specified
 if multiproc
-    M = ProcManager(numprocs);
+    try
+        M = ProcManager(numprocs);
+    catch
+        fprintf('ProcManager.m needs to be in the working path, either the directory this ran from or ~/matlab/ProcManager.m');
+        return
+    end
 end
 
 switch f_dattype,
     
     case 'REAL',
-        
-        for B=1:numprocs:size(bof,1)
-            numprocstouse = min([size(bof,1)-B+1 numprocs]);
-            tmp_array = M.runN(numprocstouse,@real_loop,x,N,xminx,limit,sample);
-            for k=1:numprocstouse
+        if multiproc
+            for B=1:numprocs:size(bof,1)
+                numprocstouse = min([size(bof,1)-B+1 numprocs]);
+                tmp_array = M.runN(numprocstouse,@real_loop,x,N,xminx,limit,sample);
+              for k=1:numprocstouse
                 pos = B+k-1;
                 bof(pos,:) = tmp_array{k};
                 if ~quiet && pos>1,
                     fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
-                end;
-            end;
-        end;
+                end
+            end
+        end
+        else
+        for B=1:size(bof,1)
+        pos = B;
+        bof(pos,:) = real_loop(x,N,xminx,limit,sample);
+
+       if ~quiet && pos>1,
+                    fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
+                end
+        end
+        end
         n     = std(bof(:,1));
         xmin  = std(bof(:,2));
         alpha = std(bof(:,3));
@@ -191,9 +206,9 @@ switch f_dattype,
         
         if isempty(vec),
             vec  = (1.50:0.01:3.50);    % covers range of most practical
-        end;                            % scaling parameters
+        end                            % scaling parameters
         zvec = zeta(vec);
-        
+        if multiproc
         for B=1:numprocs:size(bof,1)
             numprocstouse = min([size(bof,1)-B+1 numprocs]);
             tmp_array = M.runN(numprocstouse,@int_loop,x,N,xminx,limit,sample,vec,zvec);
@@ -202,9 +217,18 @@ switch f_dattype,
                 bof(pos,:) = tmp_array{k};
                 if ~quiet && pos>1,
                     fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
-                end;
-            end;
-        end;
+                end
+            end
+        end
+        else
+                for B=1:size(bof,1)
+pos = B;
+bof(pos,:) = int_loop(x,N,xminx,limit,sample,vec,zvec);
+                if ~quiet && pos>1,
+                    fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
+                end
+end
+        end
         n     = std(bof(:,1));
         xmin  = std(bof(:,2));
         alpha = std(bof(:,3));
@@ -215,7 +239,7 @@ switch f_dattype,
         xmin  = [];
         n     = [];
         return;
-end;
+end
 
 
 end
@@ -227,13 +251,13 @@ ymins = unique(y);
 ymins = ymins(1:end-1);
 if ~isempty(xminx),
     ymins = ymins(find(ymins>=xminx,1,'first'));
-end;
+end
 if ~isempty(limit),
     ymins(ymins>limit) = [];
-end;
+end
 if ~isempty(sample),
     ymins = ymins(unique(round(linspace(1,length(ymins),sample))));
-end;
+end
 dat   = zeros(size(ymins));
 z     = sort(y);
 for xm=1:length(ymins)
@@ -246,7 +270,7 @@ for xm=1:length(ymins)
     cx   = (0:n-1)'./n;
     cf   = 1-(xmin./z).^a;
     dat(xm) = max( abs(cf-cx) );
-end;
+end
 ymin  = ymins(find(dat<=min(dat),1,'first'));
 z     = y(y>=ymin);
 n     = length(z);
@@ -264,14 +288,14 @@ ymins = unique(y);
 ymins = ymins(1:end-1);
 if ~isempty(xminx),
     ymins = ymins(find(ymins>=xminx,1,'first'));
-end;
+end
 if ~isempty(limit),
     limit = round(limit);
     ymins(ymins>limit) = [];
-end;
+end
 if ~isempty(sample),
     ymins = ymins(unique(round(linspace(1,length(ymins),sample))));
-end;
+end
 ymax   = max(y);
 dat    = zeros(length(ymins),2);
 z      = y;
@@ -291,8 +315,8 @@ for xm=1:length(ymins)
             % catch: force loop to default to iterative version for
             % remainder of the search
             fcatch=1;
-        end;
-    end;
+        end
+    end
     if fcatch==1
         % iterative version (more memory efficient, but slower)
         L       = -Inf*ones(size(vec));
@@ -300,8 +324,8 @@ for xm=1:length(ymins)
         xminvec = (1:xmin-1);
         for k=1:length(vec)
             L(k) = -vec(k)*slogz - n*log(zvec(k) - sum(xminvec.^-vec(k)));
-        end;
-    end;
+        end
+    end
     [Y,I] = max(L);
     % compute KS statistic
     fit = cumsum((((xmin:ymax).^-vec(I)))./ (zvec(I) - sum((1:xmin-1).^-vec(I))));

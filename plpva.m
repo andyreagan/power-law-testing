@@ -1,4 +1,4 @@
-function [p,gof]=plpva_mult(x, xmin, varargin)
+function [p,gof]=plpva(x, xmin, varargin)
 % PLPVA calculates the p-value for the given power-law fit to some data.
 %    Source: http://www.santafe.edu/~aaronc/powerlaws/
 %
@@ -115,23 +115,23 @@ end
 if ~isempty(vec) && (~isvector(vec) || min(vec)<=1),
     fprintf('(PLPVA) Error: ''range'' argument must contain a vector; using default.\n');
     vec = [];
-end;
+end
 if ~isempty(sample) && (~isscalar(sample) || sample<2),
     fprintf('(PLPVA) Error: ''sample'' argument must be a positive integer > 1; using default.\n');
     sample = [];
-end;
+end
 if ~isempty(limit) && (~isscalar(limit) || limit<1),
     fprintf('(PLPVA) Error: ''limit'' argument must be a positive value >= 1; using default.\n');
     limit = [];
-end;
+end
 if ~isempty(Bt) && (~isscalar(Bt) || Bt<2),
     fprintf('(PLPVA) Error: ''reps'' argument must be a positive value > 1; using default.\n');
     Bt = [];
-end;
+end
 if ~isempty(xminx) && (~isscalar(xminx) || xminx>=max(x)),
     fprintf('(PLPVA) Error: ''xmin'' argument must be a positive value < max(x); using default behavior.\n');
     xminx = [];
-end;
+end
 
 % reshape input vector
 x = reshape(x,numel(x),1);
@@ -140,17 +140,17 @@ x = reshape(x,numel(x),1);
 if     isempty(setdiff(x,floor(x))), f_dattype = 'INTS';
 elseif isreal(x),    f_dattype = 'REAL';
 else                 f_dattype = 'UNKN';
-end;
+end
 if strcmp(f_dattype,'INTS') && min(x) > 1000 && length(x)>100,
     f_dattype = 'REAL';
-end;
+end
 N = length(x);
 x = reshape(x,N,1); % guarantee x is a column vector
 if isempty(rand_state)
     rand_state = cputime;
     rand('twister',sum(100*clock));
-end;
-if isempty(Bt), Bt = 1000; end;
+end
+if isempty(Bt), Bt = 1000; end
 nof = zeros(Bt,1);
 
 if ~quiet,
@@ -158,7 +158,7 @@ if ~quiet,
     fprintf('   Copyright 2007-2010 Aaron Clauset\n');
     fprintf('   Warning: This can be a slow calculation; please be patient.\n');
     fprintf('   n    = %i\n   xmin = %6.4f\n   reps = %i\n',length(x),xmin,length(nof));
-end;
+end
 tic;
 
 
@@ -166,7 +166,12 @@ tic;
 
 % use multiple cores, if specified
 if multiproc
-    M = ProcManager(numprocs);
+    try
+        M = ProcManager(numprocs);
+    catch
+        fprintf('ProcManager.m needs to be in the working path, either the directory this ran from or ~/matlab/ProcManager.m');
+	return
+    end
 end
 
 switch f_dattype,
@@ -182,25 +187,34 @@ switch f_dattype,
         
         % compute distribution of gofs from semi-parametric bootstrap
         % of entire data set with fit
-        for B=1:numprocs:length(nof)
-            numprocstouse = min([length(nof)-B+1 numprocs]);
-            bigtmp = M.runN(numprocstouse,@real_loop,N,pz,y,ny,xmin,alpha,xminx,limit,sample);
-            for k=1:numprocstouse
-                tmp = bigtmp{k};
-                % store distribution of estimated gof values
-                nof(B+k-1) = tmp;
+        if multiproc
+            for B=1:numprocs:length(nof)
+                numprocstouse = min([length(nof)-B+1 numprocs]);
+                bigtmp = M.runN(numprocstouse,@real_loop,N,pz,y,ny,xmin,alpha,xminx,limit,sample);
+                for k=1:numprocstouse
+                    tmp = bigtmp{k};
+                    % store distribution of estimated gof values
+                    nof(B+k-1) = tmp;
+                    if ~quiet,
+                        fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B+k-1,sum(nof(1:B+k-1)>=gof)./(B+k-1),toc/60);
+                    end
+                end
+            end
+        else
+            for B=1:length(nof)
+                nof(B) = real_loop(N,pz,y,ny,xmin,alpha,xminx,limit,sample);
                 if ~quiet,
-                    fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B+k-1,sum(nof(1:B+k-1)>=gof)./(B+k-1),toc/60);
-                end;
-            end;
-        end;
+                    fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B,sum(nof(1:B)>=gof)./B,toc/60);
+                end
+            end     
+        end
         p = sum(nof>=gof)./length(nof);
         
     case 'INTS',
         
         if isempty(vec),
             vec  = (1.50:0.01:3.50);    % covers range of most practical
-        end;                            % scaling parameters
+        end                             % scaling parameters
         zvec = zeta(vec);
         
         % compute D for the empirical distribution
@@ -225,18 +239,26 @@ switch f_dattype,
         
         % compute distribution of gofs from semi-parametric bootstrap
         % of entire data set with fit
+        if multiproc
         for B=1:length(nof)
             numprocstouse = min([length(nof)-B+1 numprocs]);
-            bigtmp = M.runN(numprocstouse,@int_loop,N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf);
+            bigtmp = M.runN(numprocstouse,@int_loop,N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf,vec,zvec);
             for k=1:numprocstouse
                 tmp = bigtmp{k};
                 % store distribution of estimated gof values
                 nof(B+k-1) = tmp;
                 if ~quiet,
                     fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B+k-1,sum(nof(1:B+k-1)>=gof)./(B+k-1),toc/60);
-                end;
-            end;
-        end;
+                end
+            end
+        end
+else
+for B=1:length(nof)
+nof(B) = int_loop(N,pz,y,ny,xmin,mmax,xminx,limit,sample,cdf,vec,zvec);
+                if ~quiet,
+                    fprintf('[%i]\tp = %6.4f\t[%4.2fm]\n',B,sum(nof(1:B)>=gof)./B,toc/60);
+                end
+end
         p = sum(nof>=gof)./length(nof);
         
     otherwise,
@@ -244,7 +266,7 @@ switch f_dattype,
         p   = [];
         gof = [];
         return;
-end;
+end
 
 end
 
@@ -263,14 +285,14 @@ qmins = unique(q);
 qmins = qmins(1:end-1);
 if ~isempty(xminx),
     qmins = qmins(find(qmins>=xminx,1,'first'));
-end;
+end
 if ~isempty(limit),
     qmins(qmins>limit) = [];
-    if isempty(qmins), qmins = min(q); end;
-end;
+    if isempty(qmins), qmins = min(q); end
+end
 if ~isempty(sample),
     qmins = qmins(unique(round(linspace(1,length(qmins),sample))));
-end;
+end
 dat   = zeros(size(qmins));
 for qm=1:length(qmins)
     qmin = qmins(qm);
@@ -280,7 +302,7 @@ for qm=1:length(qmins)
     cq   = (0:nq-1)'./nq;
     cf   = 1-(qmin./zq).^a;
     dat(qm) = max( abs(cq - cf) );
-end;
+end
 tmp = min(dat);
 end
 
@@ -303,11 +325,11 @@ n2 = N-n1;
 r2 = sort(rand(n2,1));  c = 1;
 q2 = zeros(n2,1);	    k = 1;
 for i=xmin:mmax+1
-    while c<=length(r2) && r2(c)<=cdf(i,2), c=c+1; end;
+    while c<=length(r2) && r2(c)<=cdf(i,2), c=c+1; end
     q2(k:c-1) = i;
     k = c;
-    if k>n2, break; end;
-end;
+    if k>n2, break; end
+end
 q = [q1; q2];
 
 % estimate xmin and alpha via GoF-method
@@ -315,14 +337,14 @@ qmins = unique(q);
 qmins = qmins(1:end-1);
 if ~isempty(xminx),
     qmins = qmins(find(qmins>=xminx,1,'first'));
-end;
+end
 if ~isempty(limit),
     qmins(qmins>limit) = [];
-    if isempty(qmins), qmins = min(q); end;
-end;
+    if isempty(qmins), qmins = min(q); end
+end
 if ~isempty(sample),
     qmins = qmins(unique(round(linspace(1,length(qmins),sample))));
-end;
+end
 dat   = zeros(size(qmins));
 qmax  = max(q); zq = q;
 for qm=1:length(qmins)
@@ -341,8 +363,8 @@ for qm=1:length(qmins)
             qminvec = (1:qmin-1);
             for k=1:length(vec)
                 L(k) = -vec(k)*slogzq - nq*log(zvec(k) - sum(qminvec.^-vec(k)));
-            end;
-        end;
+            end
+        end
         [Y,I] = max(L);
         
         fit = cumsum((((qmin:qmax).^-vec(I)))./ (zvec(I) - sum((1:qmin-1).^-vec(I))));
@@ -350,7 +372,7 @@ for qm=1:length(qmins)
         dat(qm) = max(abs( fit - cdi ));
     else
         dat(qm) = -Inf;
-    end;
+    end
     
 end
 
