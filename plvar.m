@@ -26,6 +26,10 @@ function [alpha, xmin, n]=plvar(x, varargin)
 %
 %    For more information, try 'type plvar'
 %
+%    Multi-core: (I have 8 processors on my local machine)
+%       x = (1-rand(10000,1)).^(-1/(2.5-1));
+%       [alpha, xmin, ntail] = plvar(x,'numprocs',8);
+%
 %    See also PLFIT, PLPVA
 
 % Version 1.0   (2007 May)
@@ -37,7 +41,8 @@ function [alpha, xmin, n]=plvar(x, varargin)
 % Version 1.0.7 (2009 October)
 % Version 1.0.8 (2010 April)
 % Version 1.0.9 (2012 January)
-% Version 1.1.0 (2013 September)
+% Version 1.1.0 (2013 September) -Andy Reagan
+%
 % Copyright (C) 2008-2012 Aaron Clauset (Santa Fe Institute)
 % Distributed under GPL 2.0
 % http://www.gnu.org/copyleft/gpl.html
@@ -166,9 +171,9 @@ tic;
 % use multiple cores, if specified
 if multiproc
     try
-        M = ProcManager(numprocs);
+        M = procManager(numprocs);
     catch
-        fprintf('ProcManager.m needs to be in the working path, either the directory this ran from or ~/matlab/ProcManager.m');
+        fprintf('procManager.m needs to be in the working path, either the directory this ran from or ~/matlab/procManager.m');
         return
     end
 end
