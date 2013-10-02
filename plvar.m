@@ -172,7 +172,7 @@ tic;
 if multiproc
     try
         M = procManager(numprocs);
-    catch 
+    catch
         fprintf('procManager.m needs to be in the working path, either the directory this ran from or ~/matlab/procManager.m\n');
         alpha = [];
         xmin  = [];
@@ -190,7 +190,10 @@ switch f_dattype,
                 tmp_array = M.runN(numprocstouse,@real_loop,x,N,xminx,limit,sample);
                 for k=1:numprocstouse
                     pos = B+k-1;
-                    bof(pos,:) = tmp_array{k};
+                    tmp_cell = tmp_array{k};
+                    for h=1:3
+                        bof(pos,h) = tmp_cell{h};
+                    end
                     if ~quiet && pos>1,
                         fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
                     end
@@ -199,8 +202,10 @@ switch f_dattype,
         else
             for B=1:size(bof,1)
                 pos = B;
-                bof(pos,:) = real_loop(x,N,xminx,limit,sample);
-                
+                tmp_cell = real_loop(x,N,xminx,limit,sample);
+                for h=1:3
+                    bof(pos,h) = tmp_cell{h};
+                end
                 if ~quiet && pos>1,
                     fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
                 end
@@ -222,7 +227,10 @@ switch f_dattype,
                 tmp_array = M.runN(numprocstouse,@int_loop,x,N,xminx,limit,sample,vec,zvec);
                 for k=1:numprocstouse
                     pos = B+k-1;
-                    bof(pos,:) = tmp_array{k};
+                    tmp_cell = tmp_array{k};
+                    for h=1:3
+                        bof(pos,h) = tmp_cell{h};
+                    end
                     if ~quiet && pos>1,
                         fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
                     end
@@ -231,7 +239,11 @@ switch f_dattype,
         else
             for B=1:size(bof,1)
                 pos = B;
-                bof(pos,:) = int_loop(x,N,xminx,limit,sample,vec,zvec);
+                tmp_cell = int_loop(x,N,xminx,limit,sample,vec,zvec);
+                
+                for h=1:3
+                    bof(pos,h) = tmp_cell{h};
+                end
                 if ~quiet && pos>1,
                     fprintf('[%i]\tntail = %3.1f (%3.1f)\txmin = %3.1f (%3.1f)\talpha = %6.4f (%6.4f)\t[%4.2fm]\n',pos,mean(bof(1:pos,1)),std(bof(1:pos,1)),mean(bof(1:pos,2)),std(bof(1:pos,2)),mean(bof(1:pos,3)),std(bof(1:pos,3)),toc/60);
                 end
@@ -252,7 +264,9 @@ end
 
 end
 
-function [n,ymin,alpha] = real_loop(x,N,xminx,limit,sample)
+
+
+function tmp_cell = real_loop(x,N,xminx,limit,sample)
 y = x(ceil(N*rand(N,1)));   % bootstrap resample
 
 ymins = unique(y);
@@ -283,13 +297,14 @@ ymin  = ymins(find(dat<=min(dat),1,'first'));
 z     = y(y>=ymin);
 n     = length(z);
 alpha = 1 + n ./ sum( log(z./ymin) );
+tmp_cell = {n,ymin,alpha};
 end
 
 
 
 
 
-function [n,ymin,alpha] = int_loop(x,N,xminx,limit,sample,vec,zvec)
+function tmp_cell = int_loop(x,N,xminx,limit,sample,vec,zvec)
 y = x(ceil(N*rand(N,1)));   % bootstrap resample
 
 ymins = unique(y);
@@ -344,5 +359,6 @@ end
 ymin  = ymins(I);
 n     = sum(y>=ymin);
 alpha = dat(I,2);
+tmp_cell = {n,ymin,alpha};
 end
 
